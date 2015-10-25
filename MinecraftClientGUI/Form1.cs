@@ -1,12 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Windows.Forms;
 using System.Threading;
+using System.Windows.Forms;
 
 namespace MinecraftClientGUI
 {
@@ -16,10 +12,11 @@ namespace MinecraftClientGUI
 
     public partial class Form1 : Form
     {
-        private LinkedList<string> previous = new LinkedList<string>();
-        private MinecraftClient Client;
-        private Thread t_clientread;
-
+        LinkedList<string> previous = new LinkedList<string>();
+        MinecraftClient client;
+        Thread tClientread;
+       
+      
         #region Aero Glass Low-level Windows API
 
         [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
@@ -39,14 +36,14 @@ namespace MinecraftClientGUI
         public Form1(string[] args)
         {
             InitializeComponent();
-            if (args.Length > 0) { initClient(new MinecraftClient(args)); }
+            if (args.Length > 0) { InitClient(new MinecraftClient(args)); }
         }
 
         /// <summary>
         /// Define some element properties and init Aero Glass if using Vista or newer
         /// </summary>
 
-        private void Form1_Load(object sender, EventArgs e)
+        void Form1_Load(object sender, EventArgs e)
         {
             box_output.ScrollBars = RichTextBoxScrollBars.None;
             box_output.Font = new Font("Consolas", 8);
@@ -65,12 +62,12 @@ namespace MinecraftClientGUI
         /// If a client is already running, it will be closed.
         /// </summary>
 
-        private void btn_connect_Click(object sender, EventArgs e)
+        void BtnConnectClick(object sender, EventArgs e)
         {
-            if (Client != null)
+            if (client != null)
             {
-                Client.Close();
-                t_clientread.Abort();
+                client.Close();
+                tClientread.Abort();
                 box_output.Text = "";
             }
             string username = box_Login.Text;
@@ -79,7 +76,7 @@ namespace MinecraftClientGUI
             if (password == "") { password = "-"; }
             if (username != "" && serverip != "")
             {
-                initClient(new MinecraftClient(username, password, serverip));
+                InitClient(new MinecraftClient(username, password, serverip));
             }
         }
 
@@ -88,11 +85,11 @@ namespace MinecraftClientGUI
         /// </summary>
         /// <param name="client">Client to handle</param>
 
-        private void initClient(MinecraftClient client)
+        void InitClient(MinecraftClient client)
         {
-            Client = client;
-            t_clientread = new Thread(new ThreadStart(t_clientread_loop));
-            t_clientread.Start();
+            this.client = client;
+            tClientread = new Thread(new ThreadStart(TClientreadLoop));
+            tClientread.Start();
             box_input.Select();
         }
 
@@ -100,11 +97,11 @@ namespace MinecraftClientGUI
         /// Thread reading output from the Minecraft Client
         /// </summary>
 
-        private void t_clientread_loop()
+        void TClientreadLoop()
         {
-            while (true && !Client.Disconnected)
+            while (true && !client.Disconnected)
             {
-                printstring(Client.ReadLine());
+                PrintString(client.ReadLine());
             }
         }
 
@@ -113,9 +110,9 @@ namespace MinecraftClientGUI
         /// </summary>
         /// <param name="str">String to print</param>
 
-        private void printstring(string str)
+        void PrintString(string str)
         {
-            if (!String.IsNullOrEmpty(str))
+            if (!string.IsNullOrEmpty(str))
             {
                 Color color = Color.Black;
                 FontStyle style = FontStyle.Regular;
@@ -176,7 +173,7 @@ namespace MinecraftClientGUI
         /// <param name="color">Color of the text</param>
         /// <param name="style">Font style of the text</param>
 
-        private void AppendTextBox(RichTextBox box, string text, Color color, FontStyle style)
+        void AppendTextBox(RichTextBox box, string text, Color color, FontStyle style)
         {
             if (InvokeRequired)
             {
@@ -199,10 +196,10 @@ namespace MinecraftClientGUI
         /// Properly disconnect the client when clicking the [X] close button
         /// </summary>
 
-        protected void onClose(object sender, EventArgs e)
+        protected void OnClose(object sender, EventArgs e)
         {
-            if (t_clientread != null) { t_clientread.Abort(); }
-            if (Client != null) { new Thread(new ThreadStart(Client.Close)).Start(); }
+            if (tClientread != null) { tClientread.Abort(); }
+            if (client != null) { new Thread(new ThreadStart(client.Close)).Start(); }
         }
 
         /// <summary>
@@ -211,11 +208,11 @@ namespace MinecraftClientGUI
         /// <param name="sender"></param>
         /// <param name="e"></param>
 
-        public void loginBox_KeyUp(object sender, KeyEventArgs e)
+        public void LoginBoxKeyUp(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
-                btn_connect_Click(sender, e);
+                BtnConnectClick(sender, e);
                 e.Handled = true;
             }
         }
@@ -226,11 +223,11 @@ namespace MinecraftClientGUI
         /// <param name="sender"></param>
         /// <param name="e"></param>
 
-        public void inputBox_KeyDown(object sender, KeyEventArgs e)
+        public void InputBoxKeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
-                btn_send_Click(sender, e);
+                BtnSendClick(sender, e);
                 e.Handled = true;
             }
             else if (e.KeyCode == Keys.Down)
@@ -259,16 +256,16 @@ namespace MinecraftClientGUI
             {
                 if (box_input.SelectionStart > 0)
                 {
-                    string behind_cursor = box_input.Text.Substring(0, box_input.SelectionStart);
-                    string after_cursor = box_input.Text.Substring(box_input.SelectionStart);
-                    string[] behind_temp = behind_cursor.Split(' ');
-                    string autocomplete = Client.tabAutoComplete(behind_temp[behind_temp.Length - 1]);
+                    string behindCursor = box_input.Text.Substring(0, box_input.SelectionStart);
+                    string afterCursor = box_input.Text.Substring(box_input.SelectionStart);
+                    string[] behindTemp = behindCursor.Split(' ');
+                    string autocomplete = client.TabAutoComplete(behindTemp[behindTemp.Length - 1]);
                     if (!String.IsNullOrEmpty(autocomplete))
                     {
-                        behind_temp[behind_temp.Length - 1] = autocomplete;
-                        behind_cursor = String.Join(" ", behind_temp);
-                        box_input.Text = behind_cursor + after_cursor;
-                        box_input.SelectionStart = behind_cursor.Length;
+                        behindTemp[behindTemp.Length - 1] = autocomplete;
+                        behindCursor = String.Join(" ", behindTemp);
+                        box_input.Text = behindCursor + afterCursor;
+                        box_input.SelectionStart = behindCursor.Length;
                     }
                 }
                 e.SuppressKeyPress = true;
@@ -281,9 +278,9 @@ namespace MinecraftClientGUI
         /// Handle "/quit" command to properly disconnect and close the GUI.
         /// </summary>
 
-        private void btn_send_Click(object sender, EventArgs e)
+        private void BtnSendClick(object sender, EventArgs e)
         {
-            if (Client != null)
+            if (client != null)
             {
                 if (box_input.Text.Trim().ToLower() == "/quit")
                 {
@@ -291,7 +288,7 @@ namespace MinecraftClientGUI
                 }
                 else
                 {
-                    Client.SendText(box_input.Text);
+                    client.SendText(box_input.Text);
                     previous.AddLast(box_input.Text);
                     box_input.Text = "";
                 }
@@ -315,10 +312,13 @@ namespace MinecraftClientGUI
         /// Show the "About" message box, open the official topic in an internet browser if the user press OK.
         /// </summary>
 
-        private void btn_about_Click(object sender, EventArgs e)
+        void BtnAboutClick(object sender, EventArgs e)
         {
-            if (MessageBox.Show("MCC GUI version 1.0 - (c) 2013 ORelio\nAllows to send commands to any Minecraft server\nand receive text messages in a fast and easy way.\n\nPress OK to visit the official topic on Minecraft Forums.",
-                "About Minecraft Console Client", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) == DialogResult.OK)
+            if (MessageBox.Show(string.Concat("MCC GUI version 1.0 - (c) 2013 ORelio\nAllows to send commands to any Minecraft server\nand",
+                                              " receive text messages in a fast and easy way.\n\nPress OK to visit the official topic on Minecraft Forums."),
+                                              "About Minecraft Console Client",
+                                              MessageBoxButtons.OKCancel,
+                                              MessageBoxIcon.Information) == DialogResult.OK)
             {
                 System.Diagnostics.Process.Start("http://www.minecraftforum.net/topic/1314800-/");
             }
@@ -328,7 +328,7 @@ namespace MinecraftClientGUI
         /// Open a link located in the console window
         /// </summary>
 
-        private void LinkClicked(object sender, LinkClickedEventArgs e)
+        void LinkClicked(object sender, LinkClickedEventArgs e)
         {
             try { System.Diagnostics.Process.Start(e.LinkText); }
             catch (Exception ex) { MessageBox.Show("An error occured while opening the link :\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.IO;
 using System.Diagnostics;
@@ -18,20 +17,19 @@ namespace MinecraftClientGUI
         public static string ExePath = "MinecraftClient.exe";
         public bool Disconnected { get { return disconnected; } }
 
-        private LinkedList<string> OutputBuffer = new LinkedList<string>();
-        private LinkedList<string> tabAutoCompleteBuffer = new LinkedList<string>();
-        private bool disconnected = false;
-        private Process Client;
-        private Thread Reader;
+        LinkedList<string> outputBuffer = new LinkedList<string>();
+        LinkedList<string> tabAutoCompleteBuffer = new LinkedList<string>();
+        bool disconnected = false;
+        Process client;
+        Thread reader;
 
         /// <summary>
         /// Start a client using command-line arguments
         /// </summary>
-        /// <param name="args">Arguments to pass</param>
-
+        /// <param name="args">Arguments to pass</param>        
         public MinecraftClient(string[] args)
         {
-            initClient("\"" + String.Join("\" \"", args) + "\" BasicIO");
+            InitClient("\"" + String.Join("\" \"", args) + "\" BasicIO");
         }
 
         /// <summary>
@@ -40,10 +38,9 @@ namespace MinecraftClientGUI
         /// <param name="username">Username or email</param>
         /// <param name="password">Password for the given username</param>
         /// <param name="serverip">Server IP to join</param>
-
         public MinecraftClient(string username, string password, string serverip)
         {
-            initClient('"' + username + "\" \"" + password + "\" \"" + serverip + "\" BasicIO");
+            InitClient('"' + username + "\" \"" + password + "\" \"" + serverip + "\" BasicIO");
         }
 
         /// <summary>
@@ -51,23 +48,23 @@ namespace MinecraftClientGUI
         /// </summary>
         /// <param name="arguments">Arguments to pass</param>
 
-        private void initClient(string arguments)
+        private void InitClient(string arguments)
         {
             if (File.Exists(ExePath))
             {
-                Client = new Process();
-                Client.StartInfo.FileName = ExePath;
-                Client.StartInfo.Arguments = arguments;
-                Client.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                Client.StartInfo.StandardOutputEncoding = Encoding.GetEncoding(System.Globalization.CultureInfo.CurrentCulture.TextInfo.ANSICodePage);
-                Client.StartInfo.UseShellExecute = false;
-                Client.StartInfo.RedirectStandardOutput = true;
-                Client.StartInfo.RedirectStandardInput = true;
-                Client.StartInfo.CreateNoWindow = true;
-                Client.Start();
+                client = new Process();
+                client.StartInfo.FileName = ExePath;
+                client.StartInfo.Arguments = arguments;
+                client.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+                client.StartInfo.StandardOutputEncoding = Encoding.GetEncoding(System.Globalization.CultureInfo.CurrentCulture.TextInfo.ANSICodePage);
+                client.StartInfo.UseShellExecute = false;
+                client.StartInfo.RedirectStandardOutput = true;
+                client.StartInfo.RedirectStandardInput = true;
+                client.StartInfo.CreateNoWindow = true;
+                client.Start();
 
-                Reader = new Thread(new ThreadStart(t_reader));
-                Reader.Start();
+                reader = new Thread(new ThreadStart(TRreader));
+                reader.Start();
             }
             else throw new FileNotFoundException("Cannot find Minecraft Client Executable!", ExePath);
         }
@@ -76,7 +73,7 @@ namespace MinecraftClientGUI
         /// Thread for reading output and app messages from the console
         /// </summary>
 
-        private void t_reader()
+        private void TRreader()
         {
             while (true)
             {
@@ -85,7 +82,7 @@ namespace MinecraftClientGUI
                     string line = "";
                     while (line.Trim() == "")
                     {
-                        line = Client.StandardOutput.ReadLine() + Client.MainWindowTitle;
+                        line = client.StandardOutput.ReadLine() + client.MainWindowTitle;
                         if (line.Length > 0)
                         {
                             if (line == "Server was successfuly joined.") { disconnected = false; }
@@ -102,7 +99,7 @@ namespace MinecraftClientGUI
                                         break;
                                 }
                             }
-                            else OutputBuffer.AddLast(line);
+                            else outputBuffer.AddLast(line);
                         }
                     }
                 }
@@ -117,33 +114,33 @@ namespace MinecraftClientGUI
 
         public string ReadLine()
         {
-            while (OutputBuffer.Count < 1) { }
-            string line = OutputBuffer.First.Value;
-            OutputBuffer.RemoveFirst();
+            while (outputBuffer.Count < 1) { }
+            string line = outputBuffer.First.Value;
+            outputBuffer.RemoveFirst();
             return line;
         }
 
         /// <summary>
         /// Complete a playername or a command, usually by pressing the TAB key
         /// </summary>
-        /// <param name="text_behindcursor">Text to complete</param>
+        /// <param name="textBehindcursor">Text to complete</param>
         /// <returns>Returns an autocompletion for the provided text</returns>
 
-        public string tabAutoComplete(string text_behindcursor)
+        public string TabAutoComplete(string textBehindcursor)
         {
             tabAutoCompleteBuffer.Clear();
-            if (text_behindcursor != null && text_behindcursor.Trim().Length > 0)
+            if (textBehindcursor != null && textBehindcursor.Trim().Length > 0)
             {
-                text_behindcursor = text_behindcursor.Trim();
-                SendText((char)0x00 + "autocomplete" + (char)0x00 + text_behindcursor);
+                textBehindcursor = textBehindcursor.Trim();
+                SendText((char)0x00 + "autocomplete" + (char)0x00 + textBehindcursor);
                 int maxwait = 30; while (tabAutoCompleteBuffer.Count < 1 && maxwait > 0) { Thread.Sleep(100); maxwait--; }
                 if (tabAutoCompleteBuffer.Count > 0)
                 {
-                    string text_completed = tabAutoCompleteBuffer.First.Value;
+                    string textCompleted = tabAutoCompleteBuffer.First.Value;
                     tabAutoCompleteBuffer.RemoveFirst();
-                    return text_completed;
+                    return textCompleted;
                 }
-                else return text_behindcursor;
+                else return textBehindcursor;
             }
             else return "";
         }
@@ -163,7 +160,7 @@ namespace MinecraftClientGUI
                 text = text.Trim();
                 if (text.Length > 0)
                 {
-                    Client.StandardInput.WriteLine(text);
+                    client.StandardInput.WriteLine(text);
                 }
             }
         }
@@ -174,11 +171,11 @@ namespace MinecraftClientGUI
 
         public void Close()
         {
-            Client.StandardInput.WriteLine("/quit");
-            if (Reader.IsAlive) { Reader.Abort(); }
-            if (!Client.WaitForExit(3000))
+            client.StandardInput.WriteLine("/quit");
+            if (reader.IsAlive) { reader.Abort(); }
+            if (!client.WaitForExit(3000))
             {
-                try { Client.Kill(); } catch { }
+                try { client.Kill(); } catch { }
             }
         }
     }
